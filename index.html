@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>월드컵 방식 조 추첨 프로그램</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap');
+        body { font-family: 'Pretendard', sans-serif; -webkit-font-smoothing: antialiased; }
+        @media print {
+            .no-print { display: none !important; }
+            .print-grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 1rem !important; }
+        }
+        .animate-spin-slow {
+            animation: spin 3s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback } = React;
+
+        // Icons provided as inline SVGs for reliability
+        const Icons = {
+            Users: ({ size = 24, className = "" }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+            ),
+            Settings: ({ size = 24, className = "" }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+            ),
+            Play: ({ size = 24, className = "" }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+            ),
+            RefreshCw: ({ size = 24, className = "" }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/>
+                </svg>
+            ),
+            CheckCircle: ({ size = 24, className = "" }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            ),
+            AlertCircle: ({ size = 24, className = "" }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+            ),
+            Plus: ({ size = 24, className = "" }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+            ),
+            ClipboardCheck: ({ size = 24, className = "" }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><polyline points="9 14 11 16 15 12"/>
+                </svg>
+            ),
+            Crown: ({ size = 16, className = "" }) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/>
+                </svg>
+            )
+        };
+
+        const App = () => {
+            const [step, setStep] = useState('setup');
+            const [numGroups, setNumGroups] = useState(4);
+            const [numPorts, setNumPorts] = useState(4);
+            const [ports, setPorts] = useState([]);
+            const [results, setResults] = useState([]);
+            const [isShuffling, setIsShuffling] = useState(false);
+            const [errorMessage, setErrorMessage] = useState('');
+
+            useEffect(() => {
+                if (step === 'setup') {
+                    const initialPorts = Array.from({ length: numPorts }, (_, i) => ({
+                        id: i + 1,
+                        name: `포트 ${i + 1}`,
+                        students: ''
+                    }));
+                    setPorts(initialPorts);
+                }
+            }, [numPorts, step]);
+
+            const showAlert = (msg) => {
+                setErrorMessage(msg);
+                setTimeout(() => setErrorMessage(''), 3000);
+            };
+
+            const parseSpreadsheetText = (text) => {
+                return text.split('\n')
+                    .map(row => row.split('\t')[0].trim())
+                    .filter(name => name !== '')
+                    .join('\n');
+            };
+
+            const handlePortChange = (id, value) => {
+                setPorts(ports.map(p => p.id === id ? { ...p, students: value } : p));
+            };
+
+            const handlePaste = (id, e) => {
+                e.preventDefault();
+                const pastedText = e.clipboardData.getData('text');
+                const cleanedText = parseSpreadsheetText(pastedText);
+                
+                setPorts(ports.map(p => {
+                    if (p.id === id) {
+                        const currentContent = p.students.trim();
+                        const newContent = currentContent ? `${currentContent}\n${cleanedText}` : cleanedText;
+                        return { ...p, students: newContent };
+                    }
+                    return p;
+                }));
+            };
+
+            const startInput = () => {
+                if (numGroups < 2) return showAlert('조의 개수는 최소 2개 이상이어야 합니다.');
+                setStep('input');
+            };
+
+            const finalizeDraw = () => {
+                setIsShuffling(true);
+                setTimeout(() => {
+                    let newGroups = Array.from({ length: numGroups }, (_, i) => ({
+                        id: i,
+                        name: `Group ${String.fromCharCode(65 + i)}`,
+                        members: []
+                    }));
+
+                    let currentGroupIndex = 0;
+                    ports.forEach(port => {
+                        const students = port.students.split('\n')
+                            .map(s => s.trim())
+                            .filter(s => s !== '');
+                        
+                        const shuffled = [...students].sort(() => Math.random() - 0.5);
+                        
+                        shuffled.forEach((student) => {
+                            newGroups[currentGroupIndex].members.push({
+                                name: student,
+                                portId: port.id
+                            });
+                            currentGroupIndex = (currentGroupIndex + 1) % numGroups;
+                        });
+                    });
+
+                    setResults(newGroups);
+                    setIsShuffling(false);
+                    setStep('result');
+                }, 2000);
+            };
+
+            return (
+                <div className="min-h-screen p-4 md:p-12 text-slate-900 flex flex-col items-center">
+                    <div className="w-full max-w-4xl">
+                        {errorMessage && (
+                            <div className="fixed top-8 left-1/2 -translate-x-1/2 bg-rose-600 text-white px-8 py-4 rounded-2xl shadow-2xl z-50 animate-bounce flex items-center gap-3 font-bold">
+                                <Icons.AlertCircle size={20} />
+                                {errorMessage}
+                            </div>
+                        )}
+
+                        <header className="text-center mb-12 no-print">
+                            <h1 className="text-4xl md:text-5xl font-black text-blue-900 mb-4 flex items-center justify-center gap-3">
+                                <Icons.Users size={48} className="text-blue-600" />
+                                월드컵 조 추첨
+                            </h1>
+                            <p className="text-slate-500 text-lg font-medium tracking-tight">1번 포트 팀장 배정 & 가나다순 팀원 편성</p>
+                        </header>
+
+                        <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 md:p-12 border border-slate-100 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-indigo-600 no-print"></div>
+
+                            {step === 'setup' && (
+                                <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    <div className="grid md:grid-cols-2 gap-12">
+                                        <div className="space-y-4">
+                                            <label className="flex items-center gap-2 text-xl font-black text-slate-800">
+                                                <Icons.Settings size={24} className="text-blue-500" />
+                                                조의 개수
+                                            </label>
+                                            <input 
+                                                type="number" min="2" max="20" value={numGroups}
+                                                onChange={(e) => setNumGroups(parseInt(e.target.value) || 2)}
+                                                className="w-full p-6 border-4 border-slate-50 rounded-3xl bg-slate-50 focus:border-blue-500 focus:bg-white focus:outline-none text-3xl font-black transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-4">
+                                            <label className="flex items-center gap-2 text-xl font-black text-slate-800">
+                                                <Icons.Plus size={24} className="text-indigo-500" />
+                                                포트 개수
+                                            </label>
+                                            <input 
+                                                type="number" min="1" max="10" value={numPorts}
+                                                onChange={(e) => setNumPorts(parseInt(e.target.value) || 1)}
+                                                className="w-full p-6 border-4 border-slate-50 rounded-3xl bg-slate-50 focus:border-indigo-500 focus:bg-white focus:outline-none text-3xl font-black transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                    <button onClick={startInput} className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] font-black text-2xl shadow-xl shadow-blue-200 transition-all hover:-translate-y-1 active:scale-95">
+                                        명단 입력하기
+                                    </button>
+                                </div>
+                            )}
+
+                            {step === 'input' && (
+                                <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500">
+                                    <div className="flex items-center justify-between">
+                                        <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
+                                            <Icons.ClipboardCheck size={32} className="text-green-500" />
+                                            포트별 명단
+                                        </h2>
+                                        <button onClick={() => setStep('setup')} className="text-blue-600 font-bold hover:underline">설정 변경</button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        {ports.map((port) => (
+                                            <div key={port.id} className="flex flex-col">
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <span className="font-black text-slate-700">
+                                                        {port.name} {port.id === 1 && <span className="ml-1 text-xs text-blue-500 font-bold border border-blue-200 px-2 py-0.5 rounded-md">팀장 후보</span>}
+                                                    </span>
+                                                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                                                        {port.students.split('\n').filter(s => s.trim()).length}명
+                                                    </span>
+                                                </div>
+                                                <textarea 
+                                                    placeholder={port.id === 1 ? "1번 포트(팀장 후보) 명단을 붙여넣으세요" : "팀원 명단을 붙여넣으세요"}
+                                                    value={port.students}
+                                                    onChange={(e) => handlePortChange(port.id, e.target.value)}
+                                                    onPaste={(e) => handlePaste(port.id, e)}
+                                                    className="w-full p-6 rounded-[1.5rem] border-4 border-slate-50 focus:border-blue-400 focus:bg-white focus:outline-none text-lg font-medium resize-none h-48 bg-slate-50 transition-all shadow-inner"
+                                                ></textarea>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <button onClick={() => {
+                                        const count = ports.reduce((acc, p) => acc + p.students.split('\n').filter(s => s.trim()).length, 0);
+                                        if (count === 0) return showAlert('학생 명단을 입력해주세요.');
+                                        setStep('draw');
+                                    }} className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] font-black text-2xl shadow-xl shadow-blue-200 transition-all hover:-translate-y-1">
+                                        추첨 단계로 이동
+                                    </button>
+                                </div>
+                            )}
+
+                            {step === 'draw' && (
+                                <div className="text-center py-20 space-y-12 animate-in zoom-in-95 duration-500">
+                                    <div className="flex flex-col items-center">
+                                        <div className={`w-48 h-48 rounded-full border-[12px] border-blue-50 flex items-center justify-center mb-10 bg-white shadow-2xl ${isShuffling ? 'animate-spin-slow' : 'hover:scale-105 transition-transform'}`}>
+                                            {!isShuffling ? 
+                                                <Icons.Play size={80} className="text-blue-600 fill-blue-600 ml-3" /> : 
+                                                <Icons.RefreshCw size={80} className="text-blue-400" />
+                                            }
+                                        </div>
+                                        <h2 className="text-4xl font-black text-slate-800">
+                                            {isShuffling ? '조직적인 셔플 중...' : '공정한 결과를 생성합니다'}
+                                        </h2>
+                                        <p className="text-slate-500 mt-4 text-xl font-medium">1번 포트는 팀장으로 배정되며, 팀원들은 가나다 순으로 정렬됩니다.</p>
+                                    </div>
+                                    <button 
+                                        onClick={finalizeDraw}
+                                        disabled={isShuffling}
+                                        className={`px-20 py-8 rounded-full font-black text-3xl transition-all shadow-2xl ${
+                                            isShuffling ? 'bg-slate-200 text-slate-400' : 'bg-blue-600 text-white hover:scale-110 active:scale-95 shadow-blue-300'
+                                        }`}
+                                    >
+                                        추첨 시작!
+                                    </button>
+                                </div>
+                            )}
+
+                            {step === 'result' && (
+                                <div className="space-y-12 animate-in fade-in duration-1000">
+                                    <div className="text-center">
+                                        <h2 className="text-5xl font-black text-slate-900 tracking-tight">추첨 결과</h2>
+                                        <p className="text-slate-400 mt-4 font-bold text-lg no-print">팀장 배정 및 가나다순 팀원 정리 완료</p>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10 print-grid">
+                                        {results.map((group) => {
+                                            const leaders = group.members.filter(m => m.portId === 1);
+                                            const members = group.members
+                                                .filter(m => m.portId !== 1)
+                                                .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+
+                                            return (
+                                                <div key={group.id} className="border-4 border-slate-50 rounded-[2.5rem] overflow-hidden shadow-lg bg-white transition-all hover:shadow-2xl">
+                                                    <div className="bg-slate-900 text-white p-6 font-black text-2xl flex justify-between items-center">
+                                                        <span>{group.name}</span>
+                                                        <span className="text-sm bg-blue-500 px-4 py-1 rounded-full">{group.members.length}명</span>
+                                                    </div>
+                                                    <div className="p-8 space-y-4">
+                                                        {/* Leaders Display */}
+                                                        {leaders.map((leader, i) => (
+                                                            <div key={`leader-${i}`} className="flex items-center gap-5 p-5 bg-blue-50 rounded-[1.5rem] border-2 border-blue-100 font-black text-blue-900 relative">
+                                                                <div className="absolute -top-2 -left-2 bg-blue-600 text-white p-1.5 rounded-lg shadow-lg">
+                                                                    <Icons.Crown size={18} />
+                                                                </div>
+                                                                <span className="text-xl flex-1">{leader.name}</span>
+                                                                <span className="text-sm bg-blue-600 text-white px-3 py-1 rounded-lg">팀장</span>
+                                                            </div>
+                                                        ))}
+
+                                                        {/* Separator if needed */}
+                                                        {leaders.length > 0 && members.length > 0 && (
+                                                            <div className="border-t-2 border-slate-50 my-2"></div>
+                                                        )}
+
+                                                        {/* Members Display */}
+                                                        {members.map((member, i) => (
+                                                            <div key={`member-${i}`} className="flex items-center gap-5 p-4 bg-slate-50/50 rounded-2xl border-2 border-transparent font-bold text-slate-700 hover:bg-white hover:border-slate-100 transition-all">
+                                                                <span className="w-2 h-2 rounded-full bg-slate-300"></span>
+                                                                <span className="text-lg">{member.name}</span>
+                                                            </div>
+                                                        ))}
+                                                        
+                                                        {group.members.length === 0 && (
+                                                            <div className="text-slate-300 text-center py-4 font-bold italic">배정된 인원 없음</div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="pt-12 flex flex-col md:flex-row gap-6 no-print">
+                                        <button onClick={() => setStep('setup')} className="flex-1 py-6 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-[1.5rem] font-black text-xl transition-all">
+                                            처음부터 다시
+                                        </button>
+                                        <button onClick={() => window.print()} className="flex-1 py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] font-black text-xl shadow-xl shadow-blue-200 transition-all hover:-translate-y-1">
+                                            결과 저장 / 인쇄
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <footer className="mt-12 text-slate-400 font-bold text-sm no-print">
+                        © 2024 World Cup Group Drawer. All rights reserved.
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
